@@ -2,7 +2,57 @@
 
 [![GitHub license](https://img.shields.io/github/license/PX4/px4_msgs.svg)](https://github.com/PX4/px4_msg/blob/master/LICENSE) [![Build package](https://github.com/PX4/px4_msgs/workflows/Build%20package/badge.svg)](https://github.com/PX4/px4_msgs/actions)
 
-Small customization for VOXL PX4 message compatibility. VOXL uses px4 msgs ver 1.14.0 with one difference from px4 v1.14.0 release: SensorGPS. The only difference is that VOXL does not have spoofing messages, so to correctly decode SensorGPS messages from VOXL, those 6 lines have been removed. This package can now subscribe to any px4 topic from voxl-suite 1.6.8 (system image 1.8.08).
+## VOXL 2 / Starling 2 Max compatibility (branch `voxl2_starling_compat`)
+
+This branch is upstream `release/1.14`, used to decode `/fmu/out/*` topics from a VOXL 2 running
+`voxl-px4 1.14.0-2.0.142` (voxl-suite 1.6.8, system image 1.8.08). Build the same branch on the drone and
+on every workstation that replays its bags.
+
+**Verified topics**
+
+| Topic | Message | Checked against |
+|---|---|---|
+| `/fmu/out/vehicle_odometry` | `VehicleOdometry` | Live and replayed |
+| `/fmu/out/vehicle_gps_position` | `SensorGps` | All 351 messages of a recorded bag decode and re-serialize to the same 148 bytes |
+
+Other messages are unverified (see below).
+
+### Why not `main` or ModalAI's package?
+
+The PX4 bridge to ROS 2 (uXRCE-DDS) sends raw bytes and a type name. Nothing checks that the subscriber's
+definition matches the firmware's. The firmware's layout is fixed when it's compiled from the PX4 source's own
+`msg/` folder. This package is only the receiving side's copy, so it has to match that build.
+
+- **`main`** is far ahead of 1.14 and fails with `Deserialization of data failed`.
+- **ModalAI's copy** (`voxl-mpa-to-ros2`, at `/opt/ros/foxy/mpa_to_ros2/install/px4_msgs` on the drone) is
+  upstream `px4_msgs` at [`6954ed3`](https://github.com/PX4/px4_msgs/tree/6954ed341da55e5b514780d6301dd2e4647c2e49)
+  (2023-01-26). It's older than the firmware: its `SensorGps` lacks `spoofing_state`, which upstream added
+  on 2023-03-15 (`a72af71`), but the firmware sends it. Don't overlay it on this package.
+
+**A wrong definition doesn't always fail.** If a definition is missing a field, a subscriber still decodes the
+message but reads every later field shifted. With `spoofing_state` removed, `ros2 topic echo` printed
+`heading: 0.0`, `heading_accuracy: .nan`, a tiny non-zero `vel_m_s` and a nonsense `time_utc_usec`, with no
+error. `ros2 bag play` catches it instead: DDS refuses to publish a recorded payload larger than the type allows
+(`failed to publish serialized message: cannot publish data`).
+
+### Other messages: unverified
+
+These 25 messages differ between `6954ed3` and `release/1.14`, so the firmware may match either:
+`ActuatorControls`, `ActuatorControlsStatus`, `ActuatorOutputs`, `EscReport`, `EstimatorAidSource3d`,
+`EstimatorEventFlags`, `EstimatorInnovations`, `EstimatorStatus`, `EstimatorStatusFlags`, `FailsafeFlags`,
+`GimbalControls`, `ManualControlSetpoint`, `ModeCompleted`, `NormalizedUnsignedSetpoint`,
+`PositionControllerStatus`, `SensorUwb`, `TecsStatus`, `TiltrotorExtraControls`, `UwbDistance`, `UwbGrid`,
+`VehicleAttitudeSetpoint`, `VehicleCommand`, `VehicleThrustSetpoint`, `VehicleTorqueSetpoint`, `WheelEncoders`.
+Some of these only differ in comments.
+
+Before relying on one of these topics, check it against a recording rather than either `.msg` file:
+
+1. Record the topic.
+2. Read a message's length from the bag (sqlite: `length(data)` in `messages`).
+3. Decode every message with `rclpy.serialization.deserialize_message`, and check that `serialize_message`
+   gives back the same length and that the values make sense.
+4. If it doesn't match, try the definition from the other commit, then commit the one that fits and add it
+   to the table above.
 
 This package contains the ROS2 message definitions of the [PX4 Pro ecosystem](https://px4.io/). Building this package generates all the required interfaces to interface ROS2 nodes with the PX4 autopilot internals, which use the [uORB messaging API](https://dev.px4.io/en/middleware/uorb.html). Currently the messages of this package represent a dependency to [`px4_ros_com` package](https://github.com/PX4/px4_ros_com).
 
