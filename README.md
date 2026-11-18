@@ -2,6 +2,8 @@
 
 [![GitHub license](https://img.shields.io/github/license/PX4/px4_msgs.svg)](https://github.com/PX4/px4_msg/blob/master/LICENSE) [![Build package](https://github.com/PX4/px4_msgs/workflows/Build%20package/badge.svg)](https://github.com/PX4/px4_msgs/actions)
 
+Small customization for VOXL PX4 message compatibility. VOXL uses px4 msgs ver 1.14.0 with one difference from px4 v1.14.0 release: SensorGPS. The only difference is that VOXL does not have spoofing messages, so to correctly decode SensorGPS messages from VOXL, those 6 lines have been removed. This package can now subscribe to any px4 topic from voxl-suite 1.6.8 (system image 1.8.08).
+
 This package contains the ROS2 message definitions of the [PX4 Pro ecosystem](https://px4.io/). Building this package generates all the required interfaces to interface ROS2 nodes with the PX4 autopilot internals, which use the [uORB messaging API](https://dev.px4.io/en/middleware/uorb.html). Currently the messages of this package represent a dependency to [`px4_ros_com` package](https://github.com/PX4/px4_ros_com).
 
 ## uORB message definitions
